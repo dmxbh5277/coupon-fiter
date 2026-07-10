@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Lọc và Cấp Mã Coupon</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+            --light-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: var(--dark-color);
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+        }
+
+        .section {
+            border: 1px solid #e1e4e8;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            background-color: var(--light-color);
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: var(--dark-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="password"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        input[type="file"] {
+            background: white;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-danger:hover { background-color: #c82333; }
+
+        /* Ẩn vùng upload khi chưa nhập đúng pass */
+        #uploadArea {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ced4da;
+        }
+
+        /* Danh sách coupon kết quả */
+        .coupon-list {
+            margin-top: 15px;
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
+        /* Dòng hiển thị Tên Sản Phẩm Đầy Đủ */
+        .product-header-name {
+            background-color: #e6f2ff;
+            border: 1px dashed var(--primary-color);
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #004085;
+        }
+        .product-header-name strong {
+            color: #0056b3;
+        }
+
+        .coupon-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 12px 20px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .coupon-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2b5797;
+            font-family: monospace;
+        }
+
+        .no-result {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            background: white;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .status-badge {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: #6c757d;
+            color: white;
+        }
+        
+        .status-ready { background-color: var(--success-color); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Hệ thống Bộ Lọc & Cấp Coupon</h2>
+
+    <div class="section">
+        <div class="section-title">
+            <span>1. Nạp Dữ Liệu Hệ Thống (Admin)</span>
+            <span id="dataStatus" class="status-badge">Chưa có dữ liệu</span>
+        </div>
+        
+        <div id="pwdGroup">
+            <div class="form-group">
+                <label for="password">Mật khẩu quyền Admin để mở tính năng Up file:</label>
+                <input type="password" id="password" placeholder="Nhập mật khẩu..." onkeypress="handleKeyPress(event)">
+            </div>
+            <button type="button" class="btn btn-primary" onclick="verifyPassword()">Xác Thực Mật Khẩu</button>
+        </div>
+
+        <div id="uploadArea">
+            <div class="form-group">
+                <label for="excelFile" style="color: var(--success-color); font-weight: bold;">✓ Xác thực thành công! Chọn File Excel mới (Dữ liệu cũ sẽ bị đè):</label>
+                <input type="file" id="excelFile" accept=".xlsx, .xls">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. Tra Cứu & Nhận Coupon (User)</div>
+        
+        <div class="form-group">
+            <label for="searchInput">Nhập tên Sản Phẩm cần tìm:</label>
+            <input type="text" id="searchInput" placeholder="Nhập tên sản phẩm để lọc toàn bộ coupon..." oninput="searchCoupon()">
+        </div>
+
+        <label>Danh sách Coupon khả dụng:</label>
+        <div id="resultOutput" class="coupon-list">
+            <div class="no-result">Chưa có dữ liệu tìm kiếm</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- CẤU HÌNH MẬT KHẨU TẠI ĐÂY ---
+    const ADMIN_PASSWORD = "123"; 
+
+    // --- BIẾN TOÀN CỤC LƯU TRỮ DỮ LIỆU ---
+    let excelData = []; 
+
+    // Tự động kiểm tra bộ nhớ trình duyệt khi mở trang
+    window.onload = function() {
+        const savedData = localStorage.getItem('storedExcelData');
+        if (savedData) {
+            excelData = JSON.parse(savedData);
+            updateStatusBadge();
+        }
+    };
+
+    function handleKeyPress(e) {
+        if (e.key === "Enter") verifyPassword();
+    }
+
+    // 1. XÁC THỰC MẬT KHẨU
+    function verifyPassword() {
+        const inputPwd = document.getElementById('password').value;
+        const pwdGroup = document.getElementById('pwdGroup');
+        const uploadArea = document.getElementById('uploadArea');
+        
+        if (inputPwd === ADMIN_PASSWORD) {
+            pwdGroup.style.display = 'none';
+            uploadArea.style.display = 'block';
+        } else {
+            alert('Mật khẩu không chính xác!');
+        }
+    }
+
+    // ĐỌC FILE EXCEL MỚI
+    document.getElementById('excelFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                excelData = [];
+                let globalId = 0;
+
+                rawData.forEach(row => {
+                    if (row[0] !== undefined && row[1] !== undefined) {
+                        excelData.push({
+                            id: globalId++, 
+                            spName: row[0].toString().trim(),
+                            coupon: row[1].toString().trim()
+                        });
+                    }
+                });
+
+                if(excelData.length > 0) {
+                    localStorage.setItem('storedExcelData', JSON.stringify(excelData));
+                    updateStatusBadge();
+                    alert(`Đã nạp mới thành công ${excelData.length} mã coupon.`);
+                    
+                    document.getElementById('searchInput').value = "";
+                    searchCoupon();
+                    
+                    // Khóa vùng admin lại
+                    document.getElementById('pwdGroup').style.display = 'block';
+                    document.getElementById('uploadArea').style.display = 'none';
+                    document.getElementById('password').value = "";
+                } else {
+                    alert('File Excel không có dữ liệu hợp lệ.');
+                }
+            } catch (error) {
+                alert('Lỗi định dạng file Excel!');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function updateStatusBadge() {
+        const statusBadge = document.getElementById('dataStatus');
+        if(excelData.length > 0) {
+            statusBadge.innerText = `Còn ${excelData.length} mã`;
+            statusBadge.classList.add('status-ready');
+        } else {
+            statusBadge.innerText = `Chưa có dữ liệu`;
+            statusBadge.classList.remove('status-ready');
+        }
+    }
+
+    // 2. LOGIC TÌM KIẾM CÓ CHÈN TÊN SẢN PHẨM ĐẦY ĐỦ Ở DÒNG ĐẦU
+    function searchCoupon() {
+        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+        const resultOutput = document.getElementById('resultOutput');
+
+        if (!keyword) {
+            resultOutput.innerHTML = '<div class="no-result">Chưa có dữ liệu tìm kiếm</div>';
+            return;
+        }
+
+        if (excelData.length === 0) {
+            resultOutput.innerHTML = '<div class="no-result" style="color:var(--danger-color)">Hệ thống hết coupon hoặc chưa nạp file!</div>';
+            return;
+        }
+
+        // Lọc toàn bộ danh sách khớp từ khóa
+        const matchedItems = excelData.filter(item => item.spName.toLowerCase().includes(keyword));
+
+        if (matchedItems.length > 0) {
+            // Lấy tên sản phẩm đầy đủ từ phần tử đầu tiên tìm thấy
+            const fullProductName = matchedItems[0].spName;
+
+            // Dòng đầu tiên hiển thị Tên sản phẩm đầy đủ
+            let htmlContent = `
+                <div class="product-header-name">
+                    📦 Sản phẩm đang chọn: <strong>${fullProductName}</strong>
+                </div>
+            `;
+            
+            // Các dòng tiếp theo tạo danh sách Coupon tương ứng
+            matchedItems.forEach(item => {
+                htmlContent += `
+                    <div class="coupon-item" id="item-${item.id}">
+                        <div class="coupon-text">${item.coupon}</div>
+                        <button class="btn btn-success" onclick="copyAndRemove(${item.id}, '${item.coupon}')">Copy & Xóa</button>
+                    </div>
+                `;
+            });
+            resultOutput.innerHTML = htmlContent;
+        } else {
+            resultOutput.innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không tìm thấy coupon nào phù hợp!</div>';
+        }
+    }
+
+    // 3. XỬ LÝ COPY VÀ XÓA CODES
+    function copyAndRemove(targetId, couponText) {
+        navigator.clipboard.writeText(couponText).then(() => {
+            const index = excelData.findIndex(item => item.id === targetId);
+            
+            if (index !== -1) {
+                excelData.splice(index, 1);
+                localStorage.setItem('storedExcelData', JSON.stringify(excelData));
+                updateStatusBadge();
+
+                // Xóa phần tử coupon đó trên giao diện
+                const element = document.getElementById(`item-${targetId}`);
+                if (element) element.remove();
+
+                // Kiểm tra xem ngoài dòng tiêu đề Tên SP ra thì còn coupon nào không
+                const couponItemsLeft = document.querySelectorAll('.coupon-item');
+                if (couponItemsLeft.length === 0) {
+                    resultOutput.innerHTML = '<div class="no-result" style="color:var(--danger-color)">Đã dùng hết coupon của sản phẩm này!</div>';
+                }
+
+                alert(`Đã copy thành công mã: ${couponText}\nMã này đã bị hủy khỏi hệ thống.`);
+            }
+        }).catch(err => {
+            alert('Lỗi sao chép tự động!');
+        });
+    }
+</script>
+
+</body>
+</html>
+
