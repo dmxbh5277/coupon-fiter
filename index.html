@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
+    
+    <script>
+        // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
+        const GH_USER = "dmxbh5277"; // Tên hiển thị trên link GitHub
+        const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
+        const ENCODED_TOKEN = "Z2hwX05HZHphYUZoUW9pY0R0a2YzdEc5Z1VRM3RGUk12WDNCcFEwcw=="; // Chuỗi tạo từ trang base64encode.org
+        
+        const ADMIN_PASSWORD = "123";  // Mật khẩu để bạn mở quyền up file Excel trên giao diện web
+        // ====================================================================
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -210,22 +221,13 @@
 </div>
 
 <script>
-    // ==================== CẤU HÌNH THÔNG SỐ ADMIN VÀ LINK GITHUB ====================
-    const ADMIN_PASSWORD = "123";  // Mật khẩu mở tính năng up file trên web
-
-    // BẮT BUỘC SỬA CHÍNH XÁC 3 THÔNG SỐ NÀY ĐỂ KẾT NỐI ĐƯỢC ĐÁM MÂY:
-    const GH_USER = "dmxbh5277"; 
-    const GH_REPO = "coupon-filter"; 
-    const ENCODED_TOKEN = "Z2hwX05HZHphYUZoUW9pY0R0a2YzdEc5Z1VRM3RGUk12WDNCcFEwcw=="; 
-    // ==============================================================================
-
     const FILE_PATH = "coupon_database.json";
     let excelData = [];
     let fileSha = ""; 
 
-    // Hàm an toàn để giải mã Token khi gọi API
+    // Hàm an toàn để giải mã Token khi gọi API, tự động làm sạch khoảng trắng lỗi
     function getCleanToken() {
-        return atob(ENCODED_TOKEN.trim());
+        return atob(ENCODED_TOKEN.replace(/\s/g, ''));
     }
 
     // Tự động lấy dữ liệu từ đám mây khi mở trang web
@@ -281,7 +283,7 @@
         .catch(err => {
             console.error(err);
             document.getElementById('dataStatus').innerText = "Lỗi kết nối đám mây";
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN!</div>';
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN ở đầu trang!</div>';
         });
     }
 
@@ -353,7 +355,6 @@
             toggleAdminPanel();
             btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             
-            // Khóa vùng Admin
             document.getElementById('password').value = "";
             document.getElementById('pwdGroup').style.display = 'block';
             document.getElementById('uploadArea').style.display = 'none';
@@ -366,7 +367,7 @@
             btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             btn.disabled = false;
         });
-    }TOKR
+    }
 
     function updateStatusBadge() {
         const badge = document.getElementById('dataStatus');
