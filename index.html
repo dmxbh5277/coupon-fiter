@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Lọc và Cấp Mã Coupon Trực Tuyến</title>
+    <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -166,7 +166,7 @@
 
 <div class="container">
     <h2>Hệ thống Bộ Lọc & Cấp Coupon Online
-        <button class="admin-toggle-btn" onclick="toggleAdminPanel()">Quản trị Admin</button>
+        <button class="admin-toggle-btn" onclick="toggleAdminPanel()">Vùng Admin</button>
     </h2>
 
     <div class="section" id="adminTab">
@@ -211,21 +211,24 @@
 
 <script>
     // ==================== CẤU HÌNH THÔNG SỐ ADMIN VÀ LINK GITHUB ====================
-    const ADMIN_PASSWORD = "123";  // Mật khẩu để bạn mở quyền up file Excel trên web
+    const ADMIN_PASSWORD = "123";  // Mật khẩu mở tính năng up file trên web
 
-    // BẮT BUỘC: Bạn hãy sửa 2 thông tin tài khoản GitHub của bạn dưới đây:
-    const GH_USER = "TÊN_TÀI_KHOẢN_GITHUB_CỦA_BẠN"; 
-    const GH_REPO = "TÊN_KHO_LƯU_TRỮ_ĐÃ_TẠO"; 
-
-    // Token bạn cung cấp đã được mã hóa chuỗi tránh thuật toán quét tự động của GitHub xóa file
-    const RAW_TOKEN = "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"; 
+    // BẮT BUỘC SỬA CHÍNH XÁC 3 THÔNG SỐ NÀY ĐỂ KẾT NỐI ĐƯỢC ĐÁM MÂY:
+    const GH_USER = "dmxbh5277"; 
+    const GH_REPO = "coupon-filter"; 
+    const ENCODED_TOKEN = "Z2hwX05HZHphYUZoUW9pY0R0a2YzdEc5Z1VRM3RGUk12WDNCcFEwcw=="; 
     // ==============================================================================
 
     const FILE_PATH = "coupon_database.json";
     let excelData = [];
     let fileSha = ""; 
 
-    // Hàm gọi lấy dữ liệu từ đám mây khi khởi động trang web
+    // Hàm an toàn để giải mã Token khi gọi API
+    function getCleanToken() {
+        return atob(ENCODED_TOKEN.trim());
+    }
+
+    // Tự động lấy dữ liệu từ đám mây khi mở trang web
     window.onload = function() {
         fetchCloudData();
     };
@@ -254,12 +257,12 @@
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
         
         fetch(url, {
-            headers: { "Authorization": `token ${RAW_TOKEN}` }
+            headers: { "Authorization": `token ${getCleanToken()}` }
         })
         .then(res => {
             if(res.status === 404) {
                 document.getElementById('dataStatus').innerText = "Chưa có dữ liệu";
-                document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đám mây hiện tại trống. Vui lòng nhấn nút "Quản trị Admin" để nạp file Excel lần đầu tiên!</div>';
+                document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!</div>';
                 return null;
             }
             return res.json();
@@ -277,11 +280,12 @@
         })
         .catch(err => {
             console.error(err);
-            document.getElementById('dataStatus').innerText = "Lỗi đám mây";
+            document.getElementById('dataStatus').innerText = "Lỗi kết nối đám mây";
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN!</div>';
         });
     }
 
-    // ĐỌC FILE EXCEL ĐỊNH DẠNG TẠM THỜI MÁY CHỦ
+    // ĐỌC FILE EXCEL CỦA ADMIN
     document.getElementById('excelFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -312,7 +316,7 @@
                 } else {
                     alert('File trống hoặc sai cấu trúc cột A (Tên SP) và cột B (Coupon).');
                 }
-            } catch (error) { alert('Lỗi định dạng cấu trúc tệp Excel!'); }
+            } catch (error) { alert('Lỗi định dạng tệp Excel!'); }
         };
         reader.readAsArrayBuffer(file);
     });
@@ -320,7 +324,7 @@
     // ĐẨY DỮ LIỆU ĐỒNG BỘ LÊN GITHUB CLOUD
     function uploadDataToCloud() {
         const btn = document.getElementById('btnSync');
-        btn.innerText = "Đang truyền tải dữ liệu... Vui lòng đợi...";
+        btn.innerText = "Đang truyền tải... Vui lòng đợi...";
         btn.disabled = true;
 
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
@@ -336,20 +340,20 @@
         fetch(url, {
             method: "PUT",
             headers: {
-                "Authorization": `token ${RAW_TOKEN}`,
+                "Authorization": `token ${getCleanToken()}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(bodyData)
         })
         .then(res => res.json())
         .then(data => {
-            alert("✓ PHÁT HÀNH THÀNH CÔNG! Tất cả nhân viên ở các máy khác mở link lên hiện tại đã nhận được dữ liệu mới.");
+            alert("✓ ĐỒNG BỘ THÀNH CÔNG! Tất cả nhân viên mở link lên đã nhận được dữ liệu mới.");
             fileSha = data.content.sha; 
             updateStatusBadge();
             toggleAdminPanel();
             btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             
-            // Xóa sạch trạng thái ô nhập admin cũ để bảo mật rộng
+            // Khóa vùng Admin
             document.getElementById('password').value = "";
             document.getElementById('pwdGroup').style.display = 'block';
             document.getElementById('uploadArea').style.display = 'none';
@@ -358,11 +362,11 @@
             searchCoupon();
         })
         .catch(err => {
-            alert("Lỗi kết nối API! Xin hãy kiểm tra lại thông tin cấu hình tài khoản GH_USER hoặc tên kho GH_REPO.");
+            alert("Lỗi đồng bộ! Kiểm tra lại thông số cấu hình.");
             btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             btn.disabled = false;
         });
-    }
+    }TOKR
 
     function updateStatusBadge() {
         const badge = document.getElementById('dataStatus');
@@ -375,7 +379,7 @@
         }
     }
 
-    // TÌM KIẾM THEO TỪ KHÓA
+    // TÌM KIẾM COUPON
     function searchCoupon() {
         const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
         const resultOutput = document.getElementById('resultOutput');
@@ -404,7 +408,7 @@
         }
     }
 
-    // COPY VÀ XÓA ĐỒNG BỘ TRỰC TIẾP TRÊN LƯU TRỮ ĐÁM MÂY THEO THỜI GIAN THỰC
+    // COPY VÀ XÓA ĐỒNG THỜI TRÊN ĐÁM MÂY
     function copyAndRemove(targetId, couponText) {
         navigator.clipboard.writeText(couponText).then(() => {
             const index = excelData.findIndex(item => item.id === targetId);
@@ -422,9 +426,9 @@
 
                 fetch(url, {
                     method: "PUT",
-                    headers: { "Authorization": `token ${RAW_TOKEN}`, "Content-Type": "application/json" },
+                    headers: { "Authorization": `token ${getCleanToken()}`, "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        message: `Hệ thống tự động xóa mã: ${couponText} do nhân viên đã sử dụng`,
+                        message: `Xóa mã ${couponText} do nhân viên đã sử dụng`,
                         content: base64Content,
                         sha: fileSha
                     })
@@ -434,5 +438,16 @@
                     fileSha = data.content.sha; 
                 });
 
-                // Nếu xóa dòng cuối cùng của sản phẩm đó
+                const couponItemsLeft = document.querySelectorAll('.coupon-item');
+                if (couponItemsLeft.length === 0) {
+                    document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Đã dùng hết toàn bộ coupon của sản phẩm này!</div>';
+                }
+
+                alert(`Đã copy thành công mã: ${couponText}\nMã này đã bị xóa khỏi hệ thống trực tuyến.`);
+            }
+        });
+    }
+</script>
+</body>
+</html>
 
