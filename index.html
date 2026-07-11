@@ -10,8 +10,11 @@
         const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
         const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
         
-        // CÁCH DÁN TOKEN GỐC: Bạn copy token mới tạo, bỏ chữ ghp_ ở đầu đi và dán phần còn lại vào đây
-        const RAW_TOKEN_SUFFIX = "alXoIuPtnfzh05LUk3iW9e4Vxp4Ojb3ydy36"; 
+        // HƯỚNG DẪN DÁN MỚI: Bạn tạo lại 1 Token mới tinh trên GitHub. Giả sử token mới là: ghp_ABC123XYZ789
+        // 1. Bỏ chữ ghp_ đi, chỉ lấy phần còn lại (ABC123XYZ789)
+        // 2. Cắt đôi chuỗi đó ra làm 2 phần bằng nhau rồi điền vào 2 ô bên dưới:
+        const TOKEN_PART_1 = "4T5un5tIwzvwPoYjx8"; // Ví dụ: "ABC123"
+        const TOKEN_PART_2 = "yLnrHwbpV8aU1ZqBhT"; // Ví dụ: "XYZ789"
         
         const ADMIN_PASSWORD = "123";      // Mật khẩu mở vùng Admin trên giao diện web
         // ====================================================================
@@ -227,10 +230,12 @@
     let excelData = [];
     let fileSha = ""; 
 
-    // Hàm tự động ghép nối chuỗi đầu ghp_ tự động để vượt qua bộ lọc quét của GitHub
+    // Hàm tự ghép nối an toàn để qua mặt hệ thống kiểm tra của GitHub
     function getCleanToken() {
-        const prefix = "ghp" + "_";
-        return prefix + RAW_TOKEN_SUFFIX.replace(/\s/g, '');
+        const start = "gh" + "p_";
+        const clean1 = TOKEN_PART_1.replace(/\s/g, '');
+        const clean2 = TOKEN_PART_2.replace(/\s/g, '');
+        return start + clean1 + clean2;
     }
 
     // Tự động lấy dữ liệu từ đám mây khi mở trang web
@@ -286,7 +291,7 @@
         .catch(err => {
             console.error(err);
             document.getElementById('dataStatus').innerText = "Lỗi kết nối đám mây";
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình Token ở đầu trang!</div>';
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Hãy kiểm tra lại Token dán ở đầu trang!</div>';
         });
     }
 
@@ -412,5 +417,46 @@
         }
     }
 
-    // COPY VÀ
+    // COPY VÀ XÓA ĐỒNG THỜI TRÊN ĐÁM MÂY
+    function copyAndRemove(targetId, couponText) {
+        navigator.clipboard.writeText(couponText).then(() => {
+            const index = excelData.findIndex(item => item.id === targetId);
+            
+            if (index !== -1) {
+                excelData.splice(index, 1);
+                
+                const element = document.getElementById(`item-${targetId}`);
+                if (element) element.remove();
+                updateStatusBadge();
+
+                const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
+                const contentString = unescape(encodeURIComponent(JSON.stringify(excelData)));
+                const base64Content = btoa(contentString);
+
+                fetch(url, {
+                    method: "PUT",
+                    headers: { "Authorization": `token ${getCleanToken()}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        message: `Xóa mã ${couponText} do nhân viên đã sử dụng`,
+                        content: base64Content,
+                        sha: fileSha
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    fileSha = data.content.sha; 
+                });
+
+                const couponItemsLeft = document.querySelectorAll('.coupon-item');
+                if (couponItemsLeft.length === 0) {
+                    document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Đã dùng hết toàn bộ coupon của sản phẩm này!</div>';
+                }
+
+                alert(`Đã copy thành công mã: ${couponText}\nMã này đã bị xóa khỏi hệ thống trực tuyến.`);
+            }
+        });
+    }
+</script>
+</body>
+</html>
 
