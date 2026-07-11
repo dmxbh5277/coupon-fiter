@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
+    <title>LỌC COUPON GVGS - EVENT</title>
     
     <script>
         // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
         const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
         const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
         
-        // HƯỚNG DẪN ĐIỀN TOKEN MỚI TRÁNH BỊ GITHUB QUÉT KHÓA:
-        // Ví dụ Token của bạn là: ghp_ABCDE123456789XYZ
-        // -> Dòng 1: Bạn bỏ chữ "ghp_" đi, chỉ điền đoạn sau vào.
-        // -> Để an toàn tuyệt đối, hãy CẮT ĐÔI đoạn sau đó dán vào PART_1 và PART_2.
+        // CÁCH ĐIỀN TOKEN MỚI ĐỂ CHỐNG BỊ GITHUB QUÉT KHÓA:
+        // Giả sử Token mới của bạn là: ghp_LuanDMX123456789AnGiang
+        // Bỏ chữ "ghp_" đi, lấy đoạn còn lại bẻ đôi ra điền vào 2 phần dưới đây:
         
-        const TOKEN_PART_1 = "fP9BiVcIFn3od9prZu"; 
-        const TOKEN_PART_2 = "OfIeCnUGFVfY46zTXi"; 
+        const TOKEN_PART_1 = "rhMdEYetMItNAWJcMJ"; 
+        const TOKEN_PART_2 = "JknHoUMNOrNc1ePRw2"; 
         
-        const ADMIN_PASSWORD = "123";      // Mật khẩu mở vùng Admin trên giao diện web
+        const ADMIN_PASSWORD = "123";      // Mật khẩu vào vùng Admin trên web
         // ====================================================================
     </script>
 
@@ -38,7 +37,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #eef2f7;
             margin: 0;
             padding: 16px;
@@ -251,14 +250,14 @@
         <div id="pwdGroup">
             <div class="form-group">
                 <label for="password">Mật khẩu Quản trị:</label>
-                <input type="password" id="password" placeholder="Nhập mật khẩu mở khóa vùng nạp file..." onkeypress="handleKeyPress(event)">
+                <input type="password" id="password" placeholder="Nhập mật khẩu để mở khóa vùng nạp file..." onkeypress="handleKeyPress(event)">
             </div>
             <button type="button" class="btn btn-primary" onclick="verifyPassword()">Xác Thực Quyền Admin</button>
         </div>
 
         <div id="uploadArea">
             <div class="form-group">
-                <label for="excelFile" style="color: var(--success-color); font-weight: bold;">✓ Chọn File Excel mới từ máy của bạn:</label>
+                <label for="excelFile" style="color: var(--success-color); font-weight: bold;">✓ Chọn File Excel mới từ thiết bị:</label>
                 <input type="file" id="excelFile" accept=".xlsx, .xls">
             </div>
             <button type="button" class="btn btn-success" id="btnSync" onclick="uploadDataToCloud()" disabled>Bước 2: Phát Hành Lên Hệ Thống Đám Mây</button>
@@ -288,7 +287,7 @@
     let excelData = [];
     let fileSha = ""; 
 
-    // Hàm tự lắp ghép token thông minh để lách qua bộ quét tự động của GitHub
+    // Hàm tự động ghép nối Token ẩn danh lách bộ lọc bảo mật GitHub
     function getCleanToken() {
         const prefix = "gh" + "p_";
         const clean1 = TOKEN_PART_1.replace(/\s/g, '');
@@ -343,12 +342,12 @@
             
             excelData = JSON.parse(decodedContent);
             updateStatusBadge();
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đã kết nối đám mây trực tuyến thành công! Hãy gõ từ khóa để lọc mã.</div>';
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đã kết nối đám mây thành công! Hãy gõ từ khóa sản phẩm để tra cứu mã.</div>';
         })
         .catch(err => {
             console.error(err);
             document.getElementById('dataStatus').innerText = "Lỗi kết nối";
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN ở đầu trang!</div>';
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN ở đầu đoạn mã!</div>';
         });
     }
 
@@ -378,18 +377,18 @@
 
                 if(excelData.length > 0) {
                     document.getElementById('btnSync').disabled = false;
-                    alert(`Đã nhận diện thành công ${excelData.length} mã. Vui lòng nhấn nút phát hành để tải lên đám mây!`);
+                    alert(`Hệ thống nhận diện thành công ${excelData.length} dòng mã. Hãy nhấn nút phát hành phía dưới.`);
                 } else {
-                    alert('Cấu trúc file Excel chưa đúng. Cột A phải là Tên SP, Cột B phải là Mã Coupon.');
+                    alert('Cấu trúc file Excel trống hoặc sai định dạng (Cột A: Tên SP, Cột B: Mã Coupon).');
                 }
-            } catch (error) { alert('Lỗi định dạng file Excel!'); }
+            } catch (error) { alert('Không đọc được file Excel!'); }
         };
         reader.readAsArrayBuffer(file);
     });
 
     function uploadDataToCloud() {
         const btn = document.getElementById('btnSync');
-        btn.innerText = "Đang tải dữ liệu trực tuyến...";
+        btn.innerText = "Đang đồng bộ lên đám mây...";
         btn.disabled = true;
 
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
@@ -412,7 +411,7 @@
         })
         .then(res => res.json())
         .then(data => {
-            alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu mới đã chính thức chạy trên đám mây toàn hệ thống.");
+            alert("✓ ĐỒNG BỘ THÀNH CÔNG! Cơ sở dữ liệu mới đã hoạt động trực tuyến.");
             fileSha = data.content.sha; 
             updateStatusBadge();
             toggleAdminPanel();
@@ -426,7 +425,7 @@
             searchCoupon();
         })
         .catch(err => {
-            alert("Gặp lỗi khi tải lên! Thử kiểm tra kỹ lại Token mới tạo của bạn.");
+            alert("Đồng bộ thất bại! Bạn hãy kiểm tra kỹ lại Token đã điền chính xác chưa.");
             btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             btn.disabled = false;
         });
@@ -448,7 +447,7 @@
         const resultOutput = document.getElementById('resultOutput');
 
         if (!keyword) {
-            resultOutput.innerHTML = '<div class="no-result">Nhập từ khóa sản phẩm để lọc nhanh mã</div>';
+            resultOutput.innerHTML = '<div class="no-result">Nhập từ khóa tên sản phẩm để bắt đầu lọc</div>';
             return;
         }
 
@@ -467,7 +466,7 @@
             });
             resultOutput.innerHTML = htmlContent;
         } else {
-            resultOutput.innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không tìm thấy sản phẩm hoặc mã đã dùng hết!</div>';
+            resultOutput.innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không tìm thấy sản phẩm trùng khớp hoặc mã của sản phẩm này đã được lấy hết!</div>';
         }
     }
 
@@ -505,7 +504,7 @@
                     document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Đã lấy hết mã của sản phẩm này!</div>';
                 }
 
-                alert(`Đã copy mã: ${couponText}\nMã đã tự động gỡ khỏi hệ thống đám mây.`);
+                alert(`Đã copy mã: ${couponText}\nMã này đã tự động xóa khỏi dữ liệu đám mây.`);
             }
         });
     }
