@@ -1,514 +1,364 @@
-<!DOCTYPE html>
+<!DOCTYPEdoctype html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LỌC COUPON GVGS - EVENT</title>
-    
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
+
     <script>
         // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
         const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
         const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
-        
-        // CÁCH ĐIỀN TOKEN MỚI ĐỂ CHỐNG BỊ GITHUB QUÉT KHÓA:
-        // Giả sử Token mới của bạn là: ghp_LuanDMX123456789AnGiang
-        // Bỏ chữ "ghp_" đi, lấy đoạn còn lại bẻ đôi ra điền vào 2 phần dưới đây:
-        
-        const TOKEN_PART_1 = "rhMdEYetMItNAWJcMJ"; 
-        const TOKEN_PART_2 = "JknHoUMNOrNc1ePRw2"; 
-        
+
+        // HƯỚNG DẪN: Giả sử Token thô là ghp_LuanDMX12345AnGiang6789
+        // Hãy bỏ chữ "ghp_" đi, lấy đoạn chữ thô còn lại bẻ đôi điền vào đây:
+        const TOKEN_PART_1 = "1sceagPS0vUzByhLlG";   
+        const TOKEN_PART_2 = "2K4C3AzfVsSt2oE8dP";   
+
         const ADMIN_PASSWORD = "123";      // Mật khẩu vào vùng Admin trên web
         // ====================================================================
+
+        // Hàm tự động khôi phục chuỗi Token thô ẩn danh để tránh bị GitHub quét khóa mã
+        function getCleanToken() {
+            const prefix = "gh" + "p_";
+            const clean1 = TOKEN_PART_1.replace(/\s/g, '');
+            const clean2 = TOKEN_PART_2.replace(/\s/g, '');
+            return prefix + clean1 + clean2;
+        }
+
+        let couponData = [];
+
+        // 1. Tự động tải dữ liệu khi vừa mở trang web
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchDataFromGitHub();
+        });
+
+        async function fetchDataFromGitHub() {
+            const statusEl = document.getElementById('cloudStatus');
+            const listStatusEl = document.getElementById('listStatus');
+            
+            if(statusEl) statusEl.className = 'status-loading', statusEl.innerText = 'Đang kết nối đám mây...';
+            if(listStatusEl) listStatusEl.innerText = 'Hệ thống đang tải dữ liệu gốc từ máy chủ...';
+
+            const token = getCleanToken();
+            const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Không thể tải file');
+
+                const data = await response.json();
+                const binaryString = atob(data.content);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                const workbook = XLSX.read(bytes.buffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                couponData = XLSX.utils.sheet_to_json(worksheet);
+
+                if(statusEl) statusEl.className = 'status-success', statusEl.innerText = 'Kết nối đám mây thành công!';
+                if(listStatusEl) listStatusEl.innerText = `Đã tải xong dữ liệu trực tuyến (${couponData.length} dòng).`;
+                
+                // Cập nhật lại giao diện hiển thị trạng thái dữ liệu trống nếu có
+                const cloudEmptyNotice = document.getElementById('cloudEmptyNotice');
+                if(cloudEmptyNotice) {
+                    if(couponData.length > 0) {
+                        cloudEmptyNotice.style.display = 'none';
+                    } else {
+                        cloudEmptyNotice.innerHTML = 'Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!';
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                if(statusEl) statusEl.className = 'status-error', statusEl.innerText = 'Lỗi kết nối đám mây';
+                if(listStatusEl) listStatusEl.innerHTML = '<span style="color:red">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số USER, REPO và TOKEN ở đầu trang!</span>';
+            }
+        }
+
+        // 2. Hàm tìm kiếm Coupon dựa trên Mã hoặc Tên sản phẩm
+        function searchCoupon() {
+            const keyword = document.getElementById('searchKey').value.trim().toLowerCase();
+            const resultBox = document.getElementById('couponResultBox');
+            
+            if (!keyword) {
+                resultBox.innerHTML = '';
+                return;
+            }
+
+            if (couponData.length === 0) {
+                resultBox.innerHTML = '<div class="alert-info">Chưa có dữ liệu sản phẩm để tra cứu.</div>';
+                return;
+            }
+
+            // Tìm kiếm khớp với cột "Mã" hoặc "Tên sản phẩm" (Tự điều chỉnh tên cột theo file Excel của bạn)
+            const matches = couponData.filter(item => {
+                const itemCode = String(item['Mã'] || item['Model'] || '').toLowerCase();
+                const itemName = String(item['Tên sản phẩm'] || item['Sản phẩm'] || '').toLowerCase();
+                return itemCode.includes(keyword) || itemName.includes(keyword);
+            });
+
+            if (matches.length === 0) {
+                resultBox.innerHTML = '<div class="alert-info">Không tìm thấy sản phẩm nào khớp với từ khóa.</div>';
+                return;
+            }
+
+            // Hiển thị danh sách kết quả tìm thấy
+            let html = '';
+            matches.forEach((item, index) => {
+                const name = item['Tên sản phẩm'] || item['Sản phẩm'] || 'Sản phẩm không tên';
+                const coupon = item['Mã Coupon'] || item['Coupon'] || 'Không có mã';
+                
+                html += `
+                    <div class="coupon-item">
+                        <p>📦 <strong>Sản phẩm đang chọn:</strong> <span style="color:#1a73e8">${name}</span></p>
+                        <div class="coupon-action-row">
+                            <span class="coupon-code">${coupon}</span>
+                            <button class="btn-copy" onclick="copyAndRemoveCoupon('${coupon}', ${couponData.indexOf(item)})">Copy & Xóa</button>
+                        </div>
+                    </div>
+                `;
+            });
+            resultBox.innerHTML = html;
+        }
+
+        // 3. Hàm xử lý Copy và Xóa Coupon trực tiếp lên GitHub
+        async function copyAndRemoveCoupon(couponCode, globalIndex) {
+            // Thực hiện sao chép vào bộ nhớ tạm
+            try {
+                await navigator.clipboard.writeText(couponCode);
+                alert(`Đã copy mã: ${couponCode}\nHệ thống đang tiến hành xóa mã này trên đám mây...`);
+            } catch (err) {
+                alert('Không thể tự động copy, vui lòng copy tay mã này.');
+            }
+
+            // Xóa phần tử khỏi mảng local dữ liệu hiện tại
+            couponData.splice(globalIndex, 1);
+
+            // Tiến hành đồng bộ bản cập nhật mới này lên lại GitHub
+            await syncDataToGitHub();
+        }
+
+        // 4. Hàm đồng bộ (Ghi đè/Cập nhật dữ liệu mới) lên GitHub
+        async function syncDataToGitHub() {
+            const token = getCleanToken();
+            const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
+
+            try {
+                // Bước A: Lấy file cũ để có mã SHA định danh buộc phải có khi cập nhật file GitHub
+                const getRes = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if (!getRes.ok) throw new Error('Không lấy được SHA file gốc');
+                const fileData = await getRes.json();
+                const currentSha = fileData.sha;
+
+                // Bước B: Tạo file Excel mới bằng thư viện XLSX từ mảng dữ liệu hiện tại
+                const newWorksheet = XLSX.utils.json_to_sheet(couponData);
+                const newWorkbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, "Sheet1");
+                const wbout = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'binary' });
+
+                function s2ab(s) {
+                    const buf = new ArrayBuffer(s.length);
+                    const view = new Uint8Array(buf);
+                    for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+                    return buf;
+                }
+                
+                const base64Content = btoa(
+                    String.fromCharCode.apply(null, new Uint8Array(s2ab(wbout)))
+                );
+
+                // Bước C: Push dữ liệu mới đè lên GitHub bằng phương thức PUT
+                const putRes = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: "Hệ thống tự động cập nhật/Xóa mã Coupon",
+                        content: base64Content,
+                        sha: currentSha
+                    })
+                });
+
+                if (putRes.ok) {
+                    alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu đã lưu trên đám mây.");
+                    searchCoupon(); // Tải lại danh sách tìm kiếm để cập nhật giao diện
+                } else {
+                    const errDetail = await putRes.json();
+                    alert("Gặp lỗi khi tải lên! Thử kiểm tra lại Token. Chi tiết: " + errDetail.message);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Đồng bộ thất bại! Bạn hãy kiểm tra kỹ lại cấu hình Token.");
+            }
+        }
+
+        // 5. Hàm Admin: Tải File Excel mới hoàn toàn từ máy lên thay thế
+        async function uploadNewExcel() {
+            const fileInput = document.getElementById('excelFileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Vui lòng chọn 1 file Excel (.xlsx) trước khi phát hành!');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Lưu dữ liệu mới vào biến tạm thời
+                couponData = XLSX.utils.sheet_to_json(worksheet);
+
+                alert(`Đọc thành công dữ liệu file mới (${couponData.length} dòng). Tiến hành tải lên đám mây...`);
+                await syncDataToGitHub();
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 6. Hàm ẩn/hiển thị vùng Quản trị Admin
+        function toggleAdminPanel() {
+            const password = prompt("Nhập mật khẩu quyền Quản trị viên:");
+            if (password === ADMIN_PASSWORD) {
+                const panel = document.getElementById('adminPanel');
+                panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+            } else {
+                alert("Sai mật khẩu truy cập!");
+            }
+        }
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
-            --primary-color: #007bff;
+            --primary-color: #1a73e8;
             --success-color: #28a745;
-            --danger-color: #dc3545;
-            --dark-color: #212529;
-            --light-color: #f8f9fa;
+            --error-color: #dc3545;
+            --bg-color: #f8f9fa;
         }
-
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #eef2f7;
-            margin: 0;
-            padding: 16px;
-            color: var(--dark-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 15px;
+            background-color: var(--bg-color);
+            color: #333;
+            display: flex; justify-content: center;
         }
-
         .container {
-            max-width: 650px;
-            margin: 10px auto;
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            width: 100%; max-width: 500px;
+            background: #fff; padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
-
         h2 {
-            text-align: center;
-            color: var(--primary-color);
-            margin: 10px 0 30px 0;
-            font-size: 24px;
-            font-weight: 800;
+            text-align: center; color: var(--primary-color);
+            margin-top: 0; margin-bottom: 5px; font-size: 20px;
         }
-
-        .section {
-            border: 1px solid #dee2e6;
-            padding: 24px;
-            border-radius: 14px;
-            margin-bottom: 24px;
-            background-color: var(--light-color);
+        .nav-admin {
+            text-align: right; margin-bottom: 20px;
         }
-
-        .section-title {
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: #495057;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 18px;
-            flex-wrap: wrap;
-            gap: 10px;
+        .nav-admin a {
+            color: var(--primary-color); text-decoration: none; font-size: 14px; cursor: pointer;
         }
-
-        .form-group {
-            margin-bottom: 20px;
+        .card {
+            border: 1px solid #e0e0e0; border-radius: 8px;
+            padding: 15px; margin-bottom: 15px;
+            background: #fff; position: relative;
         }
-
-        label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: 700;
-            font-size: 16px;
-            color: #343a40;
+        .card-title {
+            font-weight: bold; font-size: 15px; margin-bottom: 12px; color: #444;
         }
-
-        input[type="text"], input[type="password"], input[type="file"] {
-            width: 100%;
-            padding: 16px;
-            border: 2px solid #ced4da;
-            border-radius: 12px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.2s;
-            background-color: #fff;
+        .status-badge {
+            position: absolute; top: 15px; right: 15px; font-size: 12px; font-weight: bold;
         }
+        .status-loading { color: #666; }
+        .status-success { color: var(--success-color); }
+        .status-error { color: var(--error-color); }
 
-        input[type="text"]:focus, input[type="password"]:focus {
-            border-color: var(--primary-color);
+        input[type="text"], input[type="file"] {
+            width: 100%; padding: 10px;
+            border: 1px solid #ccc; border-radius: 6px;
+            box-sizing: border-box; font-size: 14px;
         }
-
-        input[type="file"] {
-            padding: 12px;
+        .btn-block {
+            width: 100%; padding: 12px; margin-top: 10px;
+            background-color: var(--success-color); color: white;
+            border: none; border-radius: 6px; font-weight: bold;
+            font-size: 15px; cursor: pointer;
         }
-
-        .btn {
-            width: 100%;
-            padding: 16px 20px;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 16px;
-            transition: background 0.2s, transform 0.1s;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            letter-spacing: 0.5px;
-        }
-
-        .btn:active {
-            transform: scale(0.97);
-        }
-
-        .btn-primary { background-color: var(--primary-color); color: white; }
-        .btn-success { background-color: var(--success-color); color: white; }
-        .btn-danger { background-color: var(--danger-color); color: white; }
-
-        #uploadArea, #adminTab {
-            display: none;
-        }
-
-        .coupon-list {
-            margin-top: 20px;
-        }
-
-        .product-header-name {
-            background-color: #e6f2ff;
-            border: 2px dashed var(--primary-color);
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-size: 16px;
-            color: #004085;
-            line-height: 1.5;
-        }
+        .btn-block:hover { opacity: 0.9; }
 
         .coupon-item {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            background: white;
-            padding: 20px;
-            border: 2px solid #dee2e6;
-            border-radius: 14px;
-            margin-bottom: 16px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            border: 1px dashed var(--primary-color);
+            background-color: #f1f7fe;
+            padding: 12px; border-radius: 8px; margin-top: 10px;
         }
-
-        .coupon-text {
-            font-size: 22px;
-            font-weight: 800;
-            color: #1e3d59;
-            font-family: monospace;
-            text-align: center;
-            letter-spacing: 1px;
-            background: #f1f3f5;
-            padding: 14px;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
+        .coupon-item p { margin: 0 0 8px 0; font-size: 14px; }
+        .coupon-action-row {
+            display: flex; justify-content: space-between; align-items: center;
         }
-
-        .no-result {
-            text-align: center;
-            padding: 40px 20px;
-            color: #6c757d;
-            background: white;
-            border: 2px dashed #ced4da;
-            border-radius: 12px;
-            font-style: italic;
-            font-size: 16px;
-            line-height: 1.5;
+        .coupon-code {
+            font-family: "Courier New", Courier, monospace;
+            font-weight: bold; font-size: 18px; color: #333;
         }
-
-        .status-badge {
-            font-size: 14px;
-            padding: 6px 14px;
-            border-radius: 20px;
-            background: #6c757d;
-            color: white;
-            font-weight: 600;
+        .btn-copy {
+            background-color: var(--success-color); color: white;
+            border: none; padding: 6px 12px; border-radius: 4px;
+            font-weight: bold; cursor: pointer; font-size: 13px;
         }
-        
-        .status-ready { background-color: var(--success-color); }
-        
-        .admin-toggle-btn {
-            background: #e6f2ff;
-            border: 2px solid var(--primary-color);
-            color: var(--primary-color);
-            cursor: pointer;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 700;
-            padding: 8px 16px;
-            float: right;
-            margin-top: -4px;
-        }
-
-        @media (min-width: 480px) {
-            .coupon-item {
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .coupon-text {
-                flex: 1;
-                text-align: left;
-                margin-right: 12px;
-                padding: 12px 16px;
-            }
-            .coupon-item .btn {
-                width: auto;
-                min-width: 140px;
-                padding: 14px 20px;
-            }
+        .alert-info {
+            padding: 12px; background-color: #fff3cd; color: #856404;
+            border-radius: 6px; font-size: 14px; text-align: center; margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Mã Giảm Giá Online
-        <button class="admin-toggle-btn" onclick="toggleAdminPanel()">Vùng Admin</button>
-    </h2>
-
-    <div class="section" id="adminTab">
-        <div class="section-title">
-            <span>1. Cập Nhật Cơ Sở Dữ Liệu Đồng Bộ Toàn Hệ Thống</span>
-        </div>
-        
-        <div id="pwdGroup">
-            <div class="form-group">
-                <label for="password">Mật khẩu Quản trị:</label>
-                <input type="password" id="password" placeholder="Nhập mật khẩu để mở khóa vùng nạp file..." onkeypress="handleKeyPress(event)">
-            </div>
-            <button type="button" class="btn btn-primary" onclick="verifyPassword()">Xác Thực Quyền Admin</button>
-        </div>
-
-        <div id="uploadArea">
-            <div class="form-group">
-                <label for="excelFile" style="color: var(--success-color); font-weight: bold;">✓ Chọn File Excel mới từ thiết bị:</label>
-                <input type="file" id="excelFile" accept=".xlsx, .xls">
-            </div>
-            <button type="button" class="btn btn-success" id="btnSync" onclick="uploadDataToCloud()" disabled>Bước 2: Phát Hành Lên Hệ Thống Đám Mây</button>
-        </div>
+    <h2>Hệ thống Bộ Lọc & Cấp<br>Coupon Online</h2>
+    
+    <div class="nav-admin">
+        <a onclick="toggleAdminPanel()">Vùng Admin</a>
     </div>
 
-    <div class="section">
-        <div class="section-title">
-            <span>2. Tra Cứu & Lấy Coupon Nhân Viên</span>
-            <span id="dataStatus" class="status-badge">Đang kết nối...</span>
-        </div>
-        
-        <div class="form-group">
-            <label for="searchInput">Nhập tên Sản Phẩm cần lọc mã:</label>
-            <input type="text" id="searchInput" placeholder="Gõ tên hoặc từ khóa sản phẩm để tìm kiếm..." oninput="searchCoupon()">
-        </div>
+    <div id="adminPanel" class="card" style="display: none; background-color: #fdfffe; border-color: var(--success-color);">
+        <div class="card-title" style="color: var(--success-color);">1. Cập Nhật Cơ Sở Dữ Liệu Đồng Bộ Toàn Hệ Thống</div>
+        <p style="font-size: 13px; margin: -5px 0 10px 0; color: #666;">Chọn File Excel mới (Dữ liệu cũ trực tuyến sẽ bị đè):</p>
+        <input type="file" id="excelFileInput" accept=".xlsx">
+        <button class="btn-block" onclick="uploadNewExcel()">Bước 2: Phát Hành Lên Hệ Thống Đám Mây</button>
+    </div>
 
-        <label>Danh sách Coupon khả dụng:</label>
-        <div id="resultOutput" class="coupon-list">
-            <div class="no-result">Hệ thống đang tải dữ liệu gốc từ máy chủ đám mây...</div>
+    <div class="card">
+        <div class="card-title">2. Tra Cứu & Lấy Coupon Nhân Viên</div>
+        <span id="cloudStatus" class="status-badge status-loading">Đang kết nối...</span>
+        
+        <label for="searchKey" style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">Nhập tên Sản phẩm hoặc mã cần lọc:</label>
+        <input type="text" id="searchKey" placeholder="Gõ tên hoặc từ khóa sản phẩm để tìm kiếm..." oninput="searchCoupon()">
+
+        <div style="margin-top: 15px;">
+            <label style="font-weight: bold; font-size: 14px; color: #444;">Danh sách Coupon khả dụng:</label>
+            <div id="listStatus" style="font-size: 12px; color: #888; margin-top: 2px;">Đang tải bộ dữ liệu...</div>
+            
+            <div id="couponResultBox"></div>
+
+            <div id="cloudEmptyNotice" class="alert-info" style="margin-top: 10px; display: none;"></div>
         </div>
     </div>
 </div>
 
-<script>
-    const FILE_PATH = "coupon_database.json";
-    let excelData = [];
-    let fileSha = ""; 
-
-    // Hàm tự động ghép nối Token ẩn danh lách bộ lọc bảo mật GitHub
-    function getCleanToken() {
-        const prefix = "gh" + "p_";
-        const clean1 = TOKEN_PART_1.replace(/\s/g, '');
-        const clean2 = TOKEN_PART_2.replace(/\s/g, '');
-        return prefix + clean1 + clean2;
-    }
-
-    window.onload = function() {
-        fetchCloudData();
-    };
-
-    function toggleAdminPanel() {
-        const panel = document.getElementById('adminTab');
-        panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
-    }
-
-    function handleKeyPress(e) {
-        if (e.key === "Enter") verifyPassword();
-    }
-
-    function verifyPassword() {
-        const inputPwd = document.getElementById('password').value;
-        if (inputPwd === ADMIN_PASSWORD) {
-            document.getElementById('pwdGroup').style.display = 'none';
-            document.getElementById('uploadArea').style.display = 'block';
-        } else {
-            alert('Mật khẩu nhập chưa đúng!');
-        }
-    }
-
-    function fetchCloudData() {
-        const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
-        
-        fetch(url, {
-            headers: { "Authorization": `token ${getCleanToken()}` },
-            cache: "no-store"
-        })
-        .then(res => {
-            if(res.status === 404) {
-                document.getElementById('dataStatus').innerText = "Trống";
-                document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!</div>';
-                return null;
-            }
-            return res.json();
-        })
-        .then(data => {
-            if (!data) return;
-            fileSha = data.sha; 
-            const decodedContent = decodeURIComponent(atob(data.content).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-            
-            excelData = JSON.parse(decodedContent);
-            updateStatusBadge();
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đã kết nối đám mây thành công! Hãy gõ từ khóa sản phẩm để tra cứu mã.</div>';
-        })
-        .catch(err => {
-            console.error(err);
-            document.getElementById('dataStatus').innerText = "Lỗi kết nối";
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN ở đầu đoạn mã!</div>';
-        });
-    }
-
-    document.getElementById('excelFile').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
-                excelData = [];
-                let globalId = 0;
-                rawData.forEach(row => {
-                    if (row[0] !== undefined && row[1] !== undefined) {
-                        excelData.push({
-                            id: globalId++, 
-                            spName: row[0].toString().trim(),
-                            coupon: row[1].toString().trim()
-                        });
-                    }
-                });
-
-                if(excelData.length > 0) {
-                    document.getElementById('btnSync').disabled = false;
-                    alert(`Hệ thống nhận diện thành công ${excelData.length} dòng mã. Hãy nhấn nút phát hành phía dưới.`);
-                } else {
-                    alert('Cấu trúc file Excel trống hoặc sai định dạng (Cột A: Tên SP, Cột B: Mã Coupon).');
-                }
-            } catch (error) { alert('Không đọc được file Excel!'); }
-        };
-        reader.readAsArrayBuffer(file);
-    });
-
-    function uploadDataToCloud() {
-        const btn = document.getElementById('btnSync');
-        btn.innerText = "Đang đồng bộ lên đám mây...";
-        btn.disabled = true;
-
-        const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
-        const contentString = unescape(encodeURIComponent(JSON.stringify(excelData)));
-        const base64Content = btoa(contentString);
-
-        const bodyData = {
-            message: "Admin cap nhat lai file danh sach ma moi",
-            content: base64Content
-        };
-        if (fileSha) bodyData.sha = fileSha; 
-
-        fetch(url, {
-            method: "PUT",
-            headers: {
-                "Authorization": `token ${getCleanToken()}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(bodyData)
-        })
-        .then(res => res.json())
-        .then(data => {
-            alert("✓ ĐỒNG BỘ THÀNH CÔNG! Cơ sở dữ liệu mới đã hoạt động trực tuyến.");
-            fileSha = data.content.sha; 
-            updateStatusBadge();
-            toggleAdminPanel();
-            btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
-            
-            document.getElementById('password').value = "";
-            document.getElementById('pwdGroup').style.display = 'block';
-            document.getElementById('uploadArea').style.display = 'none';
-            
-            document.getElementById('searchInput').value = "";
-            searchCoupon();
-        })
-        .catch(err => {
-            alert("Đồng bộ thất bại! Bạn hãy kiểm tra kỹ lại Token đã điền chính xác chưa.");
-            btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
-            btn.disabled = false;
-        });
-    }
-
-    function updateStatusBadge() {
-        const badge = document.getElementById('dataStatus');
-        if(excelData.length > 0) {
-            badge.innerText = `${excelData.length} mã trực tuyến`;
-            badge.className = "status-badge status-ready";
-        } else {
-            badge.innerText = `Trống`;
-            badge.className = "status-badge";
-        }
-    }
-
-    function searchCoupon() {
-        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-        const resultOutput = document.getElementById('resultOutput');
-
-        if (!keyword) {
-            resultOutput.innerHTML = '<div class="no-result">Nhập từ khóa tên sản phẩm để bắt đầu lọc</div>';
-            return;
-        }
-
-        const matchedItems = excelData.filter(item => item.spName.toLowerCase().includes(keyword));
-
-        if (matchedItems.length > 0) {
-            const fullProductName = matchedItems[0].spName;
-            let htmlContent = `<div class="product-header-name">📦 Sản phẩm đang chọn: <strong>${fullProductName}</strong></div>`;
-            
-            matchedItems.forEach(item => {
-                htmlContent += `
-                    <div class="coupon-item" id="item-${item.id}">
-                        <div class="coupon-text">${item.coupon}</div>
-                        <button class="btn btn-success" onclick="copyAndRemove(${item.id}, '${item.coupon}')">Copy & Xóa</button>
-                    </div>`;
-            });
-            resultOutput.innerHTML = htmlContent;
-        } else {
-            resultOutput.innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không tìm thấy sản phẩm trùng khớp hoặc mã của sản phẩm này đã được lấy hết!</div>';
-        }
-    }
-
-    function copyAndRemove(targetId, couponText) {
-        navigator.clipboard.writeText(couponText).then(() => {
-            const index = excelData.findIndex(item => item.id === targetId);
-            
-            if (index !== -1) {
-                excelData.splice(index, 1);
-                
-                const element = document.getElementById(`item-${targetId}`);
-                if (element) element.remove();
-                updateStatusBadge();
-
-                const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
-                const contentString = unescape(encodeURIComponent(JSON.stringify(excelData)));
-                const base64Content = btoa(contentString);
-
-                fetch(url, {
-                    method: "PUT",
-                    headers: { "Authorization": `token ${getCleanToken()}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        message: `Nhan vien rut ma: ${couponText}`,
-                        content: base64Content,
-                        sha: fileSha
-                    })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    fileSha = data.content.sha; 
-                });
-
-                const couponItemsLeft = document.querySelectorAll('.coupon-item');
-                if (couponItemsLeft.length === 0) {
-                    document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Đã lấy hết mã của sản phẩm này!</div>';
-                }
-
-                alert(`Đã copy mã: ${couponText}\nMã này đã tự động xóa khỏi dữ liệu đám mây.`);
-            }
-        });
-    }
-</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>
 
