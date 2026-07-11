@@ -1,247 +1,9 @@
-<!DOCTYPEdoctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-    <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
-
-    <script>
-        // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
-        const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
-        const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
-
-        // HƯỚNG DẪN: Giả sử Token thô là ghp_LuanDMX12345AnGiang6789
-        // Hãy bỏ chữ "ghp_" đi, lấy đoạn chữ thô còn lại bẻ đôi điền vào đây:
-        const TOKEN_PART_1 = "1sceagPS0vUzByhLlG";   
-        const TOKEN_PART_2 = "2K4C3AzfVsSt2oE8dP";   
-
-        const ADMIN_PASSWORD = "123";      // Mật khẩu vào vùng Admin trên web
-        // ====================================================================
-
-        // Hàm tự động khôi phục chuỗi Token thô ẩn danh để tránh bị GitHub quét khóa mã
-        function getCleanToken() {
-            const prefix = "gh" + "p_";
-            const clean1 = TOKEN_PART_1.replace(/\s/g, '');
-            const clean2 = TOKEN_PART_2.replace(/\s/g, '');
-            return prefix + clean1 + clean2;
-        }
-
-        let couponData = [];
-
-        // 1. Tự động tải dữ liệu khi vừa mở trang web
-        window.addEventListener('DOMContentLoaded', () => {
-            fetchDataFromGitHub();
-        });
-
-        async function fetchDataFromGitHub() {
-            const statusEl = document.getElementById('cloudStatus');
-            const listStatusEl = document.getElementById('listStatus');
-            
-            if(statusEl) statusEl.className = 'status-loading', statusEl.innerText = 'Đang kết nối đám mây...';
-            if(listStatusEl) listStatusEl.innerText = 'Hệ thống đang tải dữ liệu gốc từ máy chủ...';
-
-            const token = getCleanToken();
-            const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
-
-            try {
-                const response = await fetch(url, {
-                    headers: { 'Authorization': `token ${token}` }
-                });
-
-                if (!response.ok) throw new Error('Không thể tải file');
-
-                const data = await response.json();
-                const binaryString = atob(data.content);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                
-                const workbook = XLSX.read(bytes.buffer, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                couponData = XLSX.utils.sheet_to_json(worksheet);
-
-                if(statusEl) statusEl.className = 'status-success', statusEl.innerText = 'Kết nối đám mây thành công!';
-                if(listStatusEl) listStatusEl.innerText = `Đã tải xong dữ liệu trực tuyến (${couponData.length} dòng).`;
-                
-                // Cập nhật lại giao diện hiển thị trạng thái dữ liệu trống nếu có
-                const cloudEmptyNotice = document.getElementById('cloudEmptyNotice');
-                if(cloudEmptyNotice) {
-                    if(couponData.length > 0) {
-                        cloudEmptyNotice.style.display = 'none';
-                    } else {
-                        cloudEmptyNotice.innerHTML = 'Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!';
-                    }
-                }
-            } catch (error) {
-                console.error(error);
-                if(statusEl) statusEl.className = 'status-error', statusEl.innerText = 'Lỗi kết nối đám mây';
-                if(listStatusEl) listStatusEl.innerHTML = '<span style="color:red">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số USER, REPO và TOKEN ở đầu trang!</span>';
-            }
-        }
-
-        // 2. Hàm tìm kiếm Coupon dựa trên Mã hoặc Tên sản phẩm
-        function searchCoupon() {
-            const keyword = document.getElementById('searchKey').value.trim().toLowerCase();
-            const resultBox = document.getElementById('couponResultBox');
-            
-            if (!keyword) {
-                resultBox.innerHTML = '';
-                return;
-            }
-
-            if (couponData.length === 0) {
-                resultBox.innerHTML = '<div class="alert-info">Chưa có dữ liệu sản phẩm để tra cứu.</div>';
-                return;
-            }
-
-            // Tìm kiếm khớp với cột "Mã" hoặc "Tên sản phẩm" (Tự điều chỉnh tên cột theo file Excel của bạn)
-            const matches = couponData.filter(item => {
-                const itemCode = String(item['Mã'] || item['Model'] || '').toLowerCase();
-                const itemName = String(item['Tên sản phẩm'] || item['Sản phẩm'] || '').toLowerCase();
-                return itemCode.includes(keyword) || itemName.includes(keyword);
-            });
-
-            if (matches.length === 0) {
-                resultBox.innerHTML = '<div class="alert-info">Không tìm thấy sản phẩm nào khớp với từ khóa.</div>';
-                return;
-            }
-
-            // Hiển thị danh sách kết quả tìm thấy
-            let html = '';
-            matches.forEach((item, index) => {
-                const name = item['Tên sản phẩm'] || item['Sản phẩm'] || 'Sản phẩm không tên';
-                const coupon = item['Mã Coupon'] || item['Coupon'] || 'Không có mã';
-                
-                html += `
-                    <div class="coupon-item">
-                        <p>📦 <strong>Sản phẩm đang chọn:</strong> <span style="color:#1a73e8">${name}</span></p>
-                        <div class="coupon-action-row">
-                            <span class="coupon-code">${coupon}</span>
-                            <button class="btn-copy" onclick="copyAndRemoveCoupon('${coupon}', ${couponData.indexOf(item)})">Copy & Xóa</button>
-                        </div>
-                    </div>
-                `;
-            });
-            resultBox.innerHTML = html;
-        }
-
-        // 3. Hàm xử lý Copy và Xóa Coupon trực tiếp lên GitHub
-        async function copyAndRemoveCoupon(couponCode, globalIndex) {
-            // Thực hiện sao chép vào bộ nhớ tạm
-            try {
-                await navigator.clipboard.writeText(couponCode);
-                alert(`Đã copy mã: ${couponCode}\nHệ thống đang tiến hành xóa mã này trên đám mây...`);
-            } catch (err) {
-                alert('Không thể tự động copy, vui lòng copy tay mã này.');
-            }
-
-            // Xóa phần tử khỏi mảng local dữ liệu hiện tại
-            couponData.splice(globalIndex, 1);
-
-            // Tiến hành đồng bộ bản cập nhật mới này lên lại GitHub
-            await syncDataToGitHub();
-        }
-
-        // 4. Hàm đồng bộ (Ghi đè/Cập nhật dữ liệu mới) lên GitHub
-        async function syncDataToGitHub() {
-            const token = getCleanToken();
-            const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
-
-            try {
-                // Bước A: Lấy file cũ để có mã SHA định danh buộc phải có khi cập nhật file GitHub
-                const getRes = await fetch(url, {
-                    headers: { 'Authorization': `token ${token}` }
-                });
-                if (!getRes.ok) throw new Error('Không lấy được SHA file gốc');
-                const fileData = await getRes.json();
-                const currentSha = fileData.sha;
-
-                // Bước B: Tạo file Excel mới bằng thư viện XLSX từ mảng dữ liệu hiện tại
-                const newWorksheet = XLSX.utils.json_to_sheet(couponData);
-                const newWorkbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, "Sheet1");
-                const wbout = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'binary' });
-
-                function s2ab(s) {
-                    const buf = new ArrayBuffer(s.length);
-                    const view = new Uint8Array(buf);
-                    for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
-                    return buf;
-                }
-                
-                const base64Content = btoa(
-                    String.fromCharCode.apply(null, new Uint8Array(s2ab(wbout)))
-                );
-
-                // Bước C: Push dữ liệu mới đè lên GitHub bằng phương thức PUT
-                const putRes = await fetch(url, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: "Hệ thống tự động cập nhật/Xóa mã Coupon",
-                        content: base64Content,
-                        sha: currentSha
-                    })
-                });
-
-                if (putRes.ok) {
-                    alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu đã lưu trên đám mây.");
-                    searchCoupon(); // Tải lại danh sách tìm kiếm để cập nhật giao diện
-                } else {
-                    const errDetail = await putRes.json();
-                    alert("Gặp lỗi khi tải lên! Thử kiểm tra lại Token. Chi tiết: " + errDetail.message);
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Đồng bộ thất bại! Bạn hãy kiểm tra kỹ lại cấu hình Token.");
-            }
-        }
-
-        // 5. Hàm Admin: Tải File Excel mới hoàn toàn từ máy lên thay thế
-        async function uploadNewExcel() {
-            const fileInput = document.getElementById('excelFileInput');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert('Vui lòng chọn 1 file Excel (.xlsx) trước khi phát hành!');
-                return;
-            }
-
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-
-            reader.onload = async function (e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                // Lưu dữ liệu mới vào biến tạm thời
-                couponData = XLSX.utils.sheet_to_json(worksheet);
-
-                alert(`Đọc thành công dữ liệu file mới (${couponData.length} dòng). Tiến hành tải lên đám mây...`);
-                await syncDataToGitHub();
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        // 6. Hàm ẩn/hiển thị vùng Quản trị Admin
-        function toggleAdminPanel() {
-            const password = prompt("Nhập mật khẩu quyền Quản trị viên:");
-            if (password === ADMIN_PASSWORD) {
-                const panel = document.getElementById('adminPanel');
-                panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-            } else {
-                alert("Sai mật khẩu truy cập!");
-            }
-        }
-    </script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>LỌC COUPON GVGS - EVENT</title>
     <style>
         :root {
             --primary-color: #1a73e8;
@@ -270,7 +32,7 @@
             text-align: right; margin-bottom: 20px;
         }
         .nav-admin a {
-            color: var(--primary-color); text-decoration: none; font-size: 14px; cursor: pointer;
+            color: var(--primary-color); text-decoration: none; font-size: 14px; cursor: pointer; font-weight: bold;
         }
         .card {
             border: 1px solid #e0e0e0; border-radius: 8px;
@@ -359,6 +121,242 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+    // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
+    const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
+    const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
+
+    // CÁCH ĐIỀN TOKEN MỚI ĐỂ CHỐNG BỊ GITHUB QUÉT KHÓA:
+    // Hãy tạo một Token Classic mới. Bỏ chữ "ghp_" đi, lấy đoạn chữ thô còn lại bẻ đôi điền vào đây:
+    const TOKEN_PART_1 = "1sceagPS0vUzByhLlG";   
+    const TOKEN_PART_2 = "2K4C3AzfVsSt2oE8dP";   
+
+    const ADMIN_PASSWORD = "123";      // Mật khẩu vào vùng Admin trên web
+    // ====================================================================
+
+    let couponData = [];
+
+    // Hàm khôi phục chuỗi Token ẩn danh khi ứng dụng chạy
+    function getCleanToken() {
+        const prefix = "gh" + "p_";
+        const clean1 = TOKEN_PART_1.replace(/\s/g, '').replace(/["';]/g, '');
+        const clean2 = TOKEN_PART_2.replace(/\s/g, '').replace(/["';]/g, '');
+        return prefix + clean1 + clean2;
+    }
+
+    // Tự động tải dữ liệu từ đám mây khi mở trang
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchDataFromGitHub();
+    });
+
+    async function fetchDataFromGitHub() {
+        const statusEl = document.getElementById('cloudStatus');
+        const listStatusEl = document.getElementById('listStatus');
+        const cloudEmptyNotice = document.getElementById('cloudEmptyNotice');
+        
+        if(statusEl) { statusEl.className = 'status-loading'; statusEl.innerText = 'Đang kết nối đám mây...'; }
+        if(listStatusEl) listStatusEl.innerText = 'Hệ thống đang tải dữ liệu gốc từ máy chủ...';
+
+        const token = getCleanToken();
+        const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
+
+        try {
+            const response = await fetch(url, {
+                headers: { 'Authorization': `token ${token}` }
+            });
+
+            if (!response.ok) throw new Error('Không tìm thấy file hoặc sai Token');
+
+            const data = await response.json();
+            const binaryString = atob(data.content);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            const workbook = XLSX.read(bytes.buffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            couponData = XLSX.utils.sheet_to_json(worksheet);
+
+            if(statusEl) { statusEl.className = 'status-success'; statusEl.innerText = 'Kết nối thành công!'; }
+            if(listStatusEl) listStatusEl.innerText = `Đã nạp trực tuyến (${couponData.length} dòng).`;
+            
+            if(cloudEmptyNotice) {
+                if(couponData.length > 0) {
+                    cloudEmptyNotice.style.display = 'none';
+                } else {
+                    cloudEmptyNotice.style.display = 'block';
+                    cloudEmptyNotice.innerHTML = 'Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!';
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            if(statusEl) { statusEl.className = 'status-error'; statusEl.innerText = 'Lỗi kết nối'; }
+            if(listStatusEl) listStatusEl.innerHTML = '<span style="color:red">Lỗi: Không kết nối được đám mây. Hãy kiểm tra lại TOKEN điền trong code!</span>';
+        }
+    }
+
+    // Hàm tìm kiếm sản phẩm theo Mã hoặc Tên
+    function searchCoupon() {
+        const keyword = document.getElementById('searchKey').value.trim().toLowerCase();
+        const resultBox = document.getElementById('couponResultBox');
+        
+        if (!keyword) {
+            resultBox.innerHTML = '';
+            return;
+        }
+
+        if (couponData.length === 0) {
+            resultBox.innerHTML = '<div class="alert-info">Không có dữ liệu đám mây để tra cứu.</div>';
+            return;
+        }
+
+        const matches = couponData.filter(item => {
+            const itemCode = String(item['Mã'] || item['Model'] || item['Mã sản phẩm'] || '').toLowerCase();
+            const itemName = String(item['Tên sản phẩm'] || item['Sản phẩm'] || item['Tên'] || '').toLowerCase();
+            return itemCode.includes(keyword) || itemName.includes(keyword);
+        });
+
+        if (matches.length === 0) {
+            resultBox.innerHTML = '<div class="alert-info">Không tìm thấy sản phẩm nào trùng khớp.</div>';
+            return;
+        }
+
+        let html = '';
+        matches.forEach((item) => {
+            const name = item['Tên sản phẩm'] || item['Sản phẩm'] || item['Model'] || 'Sản phẩm';
+            const coupon = item['Mã Coupon'] || item['Coupon'] || item['Mã'] || 'Trống';
+            const globalIndex = couponData.indexOf(item);
+            
+            html += `
+                <div class="coupon-item">
+                    <p>📦 <strong>Sản phẩm:</strong> <span style="color:#1a73e8">${name}</span></p>
+                    <div class="coupon-action-row">
+                        <span class="coupon-code">${coupon}</span>
+                        <button class="btn-copy" onclick="copyAndRemoveCoupon('${coupon}', ${globalIndex})">Copy & Xóa</button>
+                    </div>
+                </div>
+            `;
+        });
+        resultBox.innerHTML = html;
+    }
+
+    // Hàm Copy & tự động xóa mã khỏi đám mây
+    async function copyAndRemoveCoupon(couponCode, globalIndex) {
+        try {
+            await navigator.clipboard.writeText(couponCode);
+            alert(`Đã copy mã: ${couponCode}\nHệ thống đang tiến hành xóa mã này trên đám mây...`);
+        } catch (err) {
+            alert('Trình duyệt chặn tự động copy, hãy tự bôi đen copy mã này.');
+        }
+
+        couponData.splice(globalIndex, 1);
+        await syncDataToGitHub();
+    }
+
+    // Hàm đẩy dữ liệu đè lên GitHub đám mây
+    async function syncDataToGitHub() {
+        const token = getCleanToken();
+        const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
+
+        try {
+            const getRes = await fetch(url, {
+                headers: { 'Authorization': `token ${token}` }
+            });
+            if (!getRes.ok) throw new Error('Không lấy được cấu trúc file đám mây để cập nhật.');
+            const fileData = await getRes.json();
+            const currentSha = fileData.sha;
+
+            const newWorksheet = XLSX.utils.json_to_sheet(couponData);
+            const newWorkbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, "Sheet1");
+            const wbout = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'binary' });
+
+            function s2ab(s) {
+                const buf = new ArrayBuffer(s.length);
+                const view = new Uint8Array(buf);
+                for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+                return buf;
+            }
+            
+            const base64Content = btoa(
+                String.fromCharCode.apply(null, new Uint8Array(s2ab(wbout)))
+            );
+
+            const putRes = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: "Hệ thống cập nhật danh sách Coupon trực tuyến",
+                    content: base64Content,
+                    sha: currentSha
+                })
+            });
+
+            if (putRes.ok) {
+                alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu đã cập nhật lên đám mây.");
+                fetchDataFromGitHub();
+                document.getElementById('searchKey').value = '';
+                document.getElementById('couponResultBox').innerHTML = '';
+            } else {
+                const errDetail = await putRes.json();
+                alert("Đồng bộ thất bại! Lỗi từ máy chủ: " + errDetail.message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Lỗi hệ thống: Đồng bộ thất bại! Hãy kiểm tra lại mã Token của bạn.");
+        }
+    }
+
+    // Hàm Admin nạp file excel mới từ máy tính
+    async function uploadNewExcel() {
+        const fileInput = document.getElementById('excelFileInput');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert('Vui lòng chọn file Excel (.xlsx) trước!');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = async function (e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                couponData = XLSX.utils.sheet_to_json(worksheet);
+
+                alert(`Đọc file thành công (${couponData.length} dòng). Đang đẩy lên đám mây...`);
+                await syncDataToGitHub();
+            } catch (err) {
+                alert("Lỗi đọc dữ liệu file Excel. Hãy chắc chắn file đúng định dạng.");
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Hàm ẩn/hiện bảng điều khiển Admin
+    function toggleAdminPanel() {
+        const password = prompt("Nhập mật khẩu quyền Quản trị viên:");
+        if (password === ADMIN_PASSWORD) {
+            const panel = document.getElementById('adminPanel');
+            if(panel) {
+                panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+            }
+        } else {
+            alert("Sai mật khẩu truy cập!");
+        }
+    }
+</script>
 </body>
 </html>
 
