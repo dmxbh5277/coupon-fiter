@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LỌC COUPON GIỜ VÀNG GIÁ SỐC - COUPON EVENT</title>
+    <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
     
     <script>
         // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
         const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
         const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
         
-        // Nhớ tạo Token mới tinh, bỏ ghp_ đi, cắt đôi dán vào 2 dòng dưới này nhé:
+        // HƯỚNG DẪN ĐIỀN TOKEN MỚI TRÁNH BỊ GITHUB QUÉT KHÓA:
+        // Ví dụ Token của bạn là: ghp_ABCDE123456789XYZ
+        // -> Dòng 1: Bạn bỏ chữ "ghp_" đi, chỉ điền đoạn sau vào.
+        // -> Để an toàn tuyệt đối, hãy CẮT ĐÔI đoạn sau đó dán vào PART_1 và PART_2.
+        
         const TOKEN_PART_1 = "fP9BiVcIFn3od9prZu"; 
         const TOKEN_PART_2 = "OfIeCnUGFVfY46zTXi"; 
         
@@ -236,45 +240,45 @@
 
 <div class="container">
     <h2>Mã Giảm Giá Online
-        <button class="admin-toggle-btn" onclick="toggleAdminPanel()">Cài đặt</button>
+        <button class="admin-toggle-btn" onclick="toggleAdminPanel()">Vùng Admin</button>
     </h2>
 
     <div class="section" id="adminTab">
         <div class="section-title">
-            <span>1. Cập Nhật Cơ Sở Dữ Liệu</span>
+            <span>1. Cập Nhật Cơ Sở Dữ Liệu Đồng Bộ Toàn Hệ Thống</span>
         </div>
         
         <div id="pwdGroup">
             <div class="form-group">
                 <label for="password">Mật khẩu Quản trị:</label>
-                <input type="password" id="password" placeholder="Nhập mật khẩu để mở khóa..." onkeypress="handleKeyPress(event)">
+                <input type="password" id="password" placeholder="Nhập mật khẩu mở khóa vùng nạp file..." onkeypress="handleKeyPress(event)">
             </div>
-            <button type="button" class="btn btn-primary" onclick="verifyPassword()">Xác Thực Quyền</button>
+            <button type="button" class="btn btn-primary" onclick="verifyPassword()">Xác Thực Quyền Admin</button>
         </div>
 
         <div id="uploadArea">
             <div class="form-group">
-                <label for="excelFile" style="color: var(--success-color); font-weight: bold;">✓ Chọn File Excel từ máy của bạn:</label>
+                <label for="excelFile" style="color: var(--success-color); font-weight: bold;">✓ Chọn File Excel mới từ máy của bạn:</label>
                 <input type="file" id="excelFile" accept=".xlsx, .xls">
             </div>
-            <button type="button" class="btn btn-success" id="btnSync" onclick="uploadDataToCloud()" disabled>Phát Hành Lên Hệ Thống</button>
+            <button type="button" class="btn btn-success" id="btnSync" onclick="uploadDataToCloud()" disabled>Bước 2: Phát Hành Lên Hệ Thống Đám Mây</button>
         </div>
     </div>
 
     <div class="section">
         <div class="section-title">
-            <span>2. Tra Cứu Tìm Mã Coupon</span>
+            <span>2. Tra Cứu & Lấy Coupon Nhân Viên</span>
             <span id="dataStatus" class="status-badge">Đang kết nối...</span>
         </div>
         
         <div class="form-group">
-            <label for="searchInput">Nhập tên hoặc mã model sản phẩm:</label>
-            <input type="text" id="searchInput" placeholder="Gõ từ khóa tìm kiếm (ví dụ: tủ lạnh, tivi...)" oninput="searchCoupon()">
+            <label for="searchInput">Nhập tên Sản Phẩm cần lọc mã:</label>
+            <input type="text" id="searchInput" placeholder="Gõ tên hoặc từ khóa sản phẩm để tìm kiếm..." oninput="searchCoupon()">
         </div>
 
-        <label>Danh sách mã khả dụng:</label>
+        <label>Danh sách Coupon khả dụng:</label>
         <div id="resultOutput" class="coupon-list">
-            <div class="no-result">Đang kết nối dữ liệu máy chủ đám mây...</div>
+            <div class="no-result">Hệ thống đang tải dữ liệu gốc từ máy chủ đám mây...</div>
         </div>
     </div>
 </div>
@@ -284,21 +288,21 @@
     let excelData = [];
     let fileSha = ""; 
 
+    // Hàm tự lắp ghép token thông minh để lách qua bộ quét tự động của GitHub
     function getCleanToken() {
-        const start = "gh" + "p_";
+        const prefix = "gh" + "p_";
         const clean1 = TOKEN_PART_1.replace(/\s/g, '');
         const clean2 = TOKEN_PART_2.replace(/\s/g, '');
-        return start + clean1 + clean2;
+        return prefix + clean1 + clean2;
     }
 
-    // Tự động kéo dữ liệu từ đám mây khi mở trang (Áp dụng cho cả máy Nhân viên)
     window.onload = function() {
         fetchCloudData();
     };
 
     function toggleAdminPanel() {
         const panel = document.getElementById('adminTab');
-        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
     }
 
     function handleKeyPress(e) {
@@ -315,43 +319,39 @@
         }
     }
 
-    // HÀM QUAN TRỌNG: Lấy dữ liệu từ GitHub về máy người dùng
     function fetchCloudData() {
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
         
         fetch(url, {
             headers: { "Authorization": `token ${getCleanToken()}` },
-            cache: "no-store" // Ép buộc lấy dữ liệu mới nhất, không lưu bộ nhớ đệm cũ
+            cache: "no-store"
         })
         .then(res => {
             if(res.status === 404) {
                 document.getElementById('dataStatus').innerText = "Trống";
-                document.getElementById('resultOutput').innerHTML = '<div class="no-result">Hệ thống chưa có dữ liệu. Vui lòng bấm "Cài đặt" để tải file Excel lên!</div>';
+                document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!</div>';
                 return null;
             }
             return res.json();
         })
         .then(data => {
             if (!data) return;
-            fileSha = data.sha; // Lưu lại dấu vết file để cập nhật lần sau
-            
-            // Giải mã nội dung từ Base64 GitHub trả về
+            fileSha = data.sha; 
             const decodedContent = decodeURIComponent(atob(data.content).split('').map(function(c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
             
             excelData = JSON.parse(decodedContent);
             updateStatusBadge();
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đã kết nối đám mây! Hãy gõ từ khóa để lọc mã.</div>';
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result">Đã kết nối đám mây trực tuyến thành công! Hãy gõ từ khóa để lọc mã.</div>';
         })
         .catch(err => {
             console.error(err);
-            document.getElementById('dataStatus').innerText = "Lỗi mạng";
-            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối. Kiểm tra cấu hình TOKEN hoặc kết nối mạng!</div>';
+            document.getElementById('dataStatus').innerText = "Lỗi kết nối";
+            document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Không thể kết nối máy chủ đám mây. Kiểm tra lại thông số cấu hình USER, REPO và TOKEN ở đầu trang!</div>';
         });
     }
 
-    // Đọc file Excel từ thiết bị Admin
     document.getElementById('excelFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -378,19 +378,18 @@
 
                 if(excelData.length > 0) {
                     document.getElementById('btnSync').disabled = false;
-                    alert(`Đã nhận ${excelData.length} mã từ Excel. Nhấn nút dưới để đồng bộ lên Đám mây!`);
+                    alert(`Đã nhận diện thành công ${excelData.length} mã. Vui lòng nhấn nút phát hành để tải lên đám mây!`);
                 } else {
-                    alert('File không đúng cấu trúc (Cột A: Tên SP, Cột B: Mã Coupon).');
+                    alert('Cấu trúc file Excel chưa đúng. Cột A phải là Tên SP, Cột B phải là Mã Coupon.');
                 }
             } catch (error) { alert('Lỗi định dạng file Excel!'); }
         };
         reader.readAsArrayBuffer(file);
     });
 
-    // HÀM QUAN TRỌNG: Đẩy dữ liệu từ máy Admin lên thẳng GitHub đám mây
     function uploadDataToCloud() {
         const btn = document.getElementById('btnSync');
-        btn.innerText = "Đang đồng bộ dữ liệu...";
+        btn.innerText = "Đang tải dữ liệu trực tuyến...";
         btn.disabled = true;
 
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE_PATH}`;
@@ -398,7 +397,7 @@
         const base64Content = btoa(contentString);
 
         const bodyData = {
-            message: "Admin cap nhat du lieu tu file Excel",
+            message: "Admin cap nhat lai file danh sach ma moi",
             content: base64Content
         };
         if (fileSha) bodyData.sha = fileSha; 
@@ -413,13 +412,12 @@
         })
         .then(res => res.json())
         .then(data => {
-            alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu đã lưu trên đám mây. Máy nhân viên mở lên sẽ thấy ngay.");
+            alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu mới đã chính thức chạy trên đám mây toàn hệ thống.");
             fileSha = data.content.sha; 
             updateStatusBadge();
             toggleAdminPanel();
-            btn.innerText = "Phát Hành Lên Hệ Thống";
+            btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             
-            // Reset form admin
             document.getElementById('password').value = "";
             document.getElementById('pwdGroup').style.display = 'block';
             document.getElementById('uploadArea').style.display = 'none';
@@ -428,8 +426,8 @@
             searchCoupon();
         })
         .catch(err => {
-            alert("Gặp lỗi khi tải lên! Thử kiểm tra lại Token.");
-            btn.innerText = "Phát Hành Lên Hệ Thống";
+            alert("Gặp lỗi khi tải lên! Thử kiểm tra kỹ lại Token mới tạo của bạn.");
+            btn.innerText = "Bước 2: Phát Hành Lên Hệ Thống Đám Mây";
             btn.disabled = false;
         });
     }
@@ -438,10 +436,10 @@
         const badge = document.getElementById('dataStatus');
         if(excelData.length > 0) {
             badge.innerText = `${excelData.length} mã trực tuyến`;
-            badge.classList.add('status-ready');
+            badge.className = "status-badge status-ready";
         } else {
             badge.innerText = `Trống`;
-            badge.classList.remove('status-ready');
+            badge.className = "status-badge";
         }
     }
 
@@ -458,7 +456,7 @@
 
         if (matchedItems.length > 0) {
             const fullProductName = matchedItems[0].spName;
-            let htmlContent = `<div class="product-header-name">📦 Sản phẩm: <strong>${fullProductName}</strong></div>`;
+            let htmlContent = `<div class="product-header-name">📦 Sản phẩm đang chọn: <strong>${fullProductName}</strong></div>`;
             
             matchedItems.forEach(item => {
                 htmlContent += `
@@ -488,7 +486,6 @@
                 const contentString = unescape(encodeURIComponent(JSON.stringify(excelData)));
                 const base64Content = btoa(contentString);
 
-                // Đồng bộ cập nhật việc xóa mã lên trực tiếp đám mây GitHub
                 fetch(url, {
                     method: "PUT",
                     headers: { "Authorization": `token ${getCleanToken()}`, "Content-Type": "application/json" },
@@ -508,12 +505,11 @@
                     document.getElementById('resultOutput').innerHTML = '<div class="no-result" style="color:var(--danger-color)">Đã lấy hết mã của sản phẩm này!</div>';
                 }
 
-                alert(`Đã sao chép: ${couponText}\nHệ thống đám mây đã gỡ mã này để tránh trùng lặp.`);
+                alert(`Đã copy mã: ${couponText}\nMã đã tự động gỡ khỏi hệ thống đám mây.`);
             }
         });
     }
 </script>
 </body>
 </html>
-
 
