@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>LỌC COUPON GVGS - EVENT</title>
+    <title>Hệ thống Bộ Lọc & Cấp Coupon Online</title>
     <style>
         :root {
             --primary-color: #1a73e8;
@@ -97,7 +97,7 @@
 
     <div id="adminPanel" class="card" style="display: none; background-color: #fdfffe; border-color: var(--success-color);">
         <div class="card-title" style="color: var(--success-color);">1. Cập Nhật Cơ Sở Dữ Liệu Đồng Bộ Toàn Hệ Thống</div>
-        <p style="font-size: 13px; margin: -5px 0 10px 0; color: #666;">Chọn File Excel mới (Dữ liệu cũ trực tuyến sẽ bị đè):</p>
+        <p style="font-size: 13px; margin: -5px 0 10px 0; color: #666;">Chọn File Excel mới để cập nhật lên đám mây:</p>
         <input type="file" id="excelFileInput" accept=".xlsx">
         <button class="btn-block" onclick="uploadNewExcel()">Bước 2: Phát Hành Lên Hệ Thống Đám Mây</button>
     </div>
@@ -124,28 +124,18 @@
 
 <script>
     // ==================== [CẤU HÌNH THÔNG SỐ TẠI ĐÂY] ====================
-    const GH_USER = "dmxbh5277";       // Tên tài khoản GitHub của bạn
-    const GH_REPO = "coupon-filter";     // Tên kho lưu trữ chứa file
+    const GH_USER = "dmxbh5277";         // Tài khoản GitHub của bạn
+    const GH_REPO = "coupon-filter";       // Tên Kho lưu trữ (Đã chuyển Private)
 
-    // CÁCH ĐIỀN TOKEN MỚI ĐỂ CHỐNG BỊ GITHUB QUÉT KHÓA:
-    // Hãy tạo một Token Classic mới. Bỏ chữ "ghp_" đi, lấy đoạn chữ thô còn lại bẻ đôi điền vào đây:
-    const TOKEN_PART_1 = "QdI6nBgWBjw7QNKIQh";   
-    const TOKEN_PART_2 = "u3C3Oa7NLEAi20cS44";   
+    // BÊN DƯỚI LÀ NƠI DÁN TOKEN MỚI TINH (GIỮ NGUYÊN CHUỖI THÔ BẮT ĐẦU BẰNG GHP_):
+    const GITHUB_TOKEN = "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";   
 
-    const ADMIN_PASSWORD = "123";      // Mật khẩu vào vùng Admin trên web
+    const ADMIN_PASSWORD = "123";        // Mật khẩu mở phân hệ Admin trên web
     // ====================================================================
 
     let couponData = [];
 
-    // Hàm khôi phục chuỗi Token ẩn danh khi ứng dụng chạy
-    function getCleanToken() {
-        const prefix = "gh" + "p_";
-        const clean1 = TOKEN_PART_1.replace(/\s/g, '').replace(/["';]/g, '');
-        const clean2 = TOKEN_PART_2.replace(/\s/g, '').replace(/["';]/g, '');
-        return prefix + clean1 + clean2;
-    }
-
-    // Tự động tải dữ liệu từ đám mây khi mở trang
+    // Tự động kích hoạt lấy file Excel trên đám mây khi tải xong trang web
     window.addEventListener('DOMContentLoaded', () => {
         fetchDataFromGitHub();
     });
@@ -158,15 +148,15 @@
         if(statusEl) { statusEl.className = 'status-loading'; statusEl.innerText = 'Đang kết nối đám mây...'; }
         if(listStatusEl) listStatusEl.innerText = 'Hệ thống đang tải dữ liệu gốc từ máy chủ...';
 
-        const token = getCleanToken();
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
 
         try {
             const response = await fetch(url, {
-                headers: { 'Authorization': `token ${token}` }
+                headers: { 'Authorization': `token ${GITHUB_TOKEN.trim()}` },
+                cache: 'no-store'
             });
 
-            if (!response.ok) throw new Error('Không tìm thấy file hoặc sai Token');
+            if (!response.ok) throw new Error('Không tìm thấy file hoặc sai cấu hình bảo mật.');
 
             const data = await response.json();
             const binaryString = atob(data.content);
@@ -185,21 +175,17 @@
             if(listStatusEl) listStatusEl.innerText = `Đã nạp trực tuyến (${couponData.length} dòng).`;
             
             if(cloudEmptyNotice) {
-                if(couponData.length > 0) {
-                    cloudEmptyNotice.style.display = 'none';
-                } else {
-                    cloudEmptyNotice.style.display = 'block';
-                    cloudEmptyNotice.innerHTML = 'Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!';
-                }
+                cloudEmptyNotice.style.display = couponData.length > 0 ? 'none' : 'block';
+                cloudEmptyNotice.innerHTML = 'Đám mây hiện tại trống. Vui lòng nhấn nút "Vùng Admin" để nạp file Excel lần đầu tiên!';
             }
         } catch (error) {
             console.error(error);
             if(statusEl) { statusEl.className = 'status-error'; statusEl.innerText = 'Lỗi kết nối'; }
-            if(listStatusEl) listStatusEl.innerHTML = '<span style="color:red">Lỗi: Không kết nối được đám mây. Hãy kiểm tra lại TOKEN điền trong code!</span>';
+            if(listStatusEl) listStatusEl.innerHTML = '<span style="color:red">Lỗi: Kết nối đám mây không thành công. Hãy kiểm tra lại TOKEN điền trong code và trạng thái Private của Repo!</span>';
         }
     }
 
-    // Hàm tìm kiếm sản phẩm theo Mã hoặc Tên
+    // Bộ lọc dữ liệu tìm kiếm
     function searchCoupon() {
         const keyword = document.getElementById('searchKey').value.trim().toLowerCase();
         const resultBox = document.getElementById('couponResultBox');
@@ -210,7 +196,7 @@
         }
 
         if (couponData.length === 0) {
-            resultBox.innerHTML = '<div class="alert-info">Không có dữ liệu đám mây để tra cứu.</div>';
+            resultBox.innerHTML = '<div class="alert-info">Không có dữ liệu trên đám mây để tra cứu.</div>';
             return;
         }
 
@@ -244,29 +230,29 @@
         resultBox.innerHTML = html;
     }
 
-    // Hàm Copy & tự động xóa mã khỏi đám mây
+    // Sao chép mã và tự động cập nhật bản ghi lên đám mây xóa mã vừa rút
     async function copyAndRemoveCoupon(couponCode, globalIndex) {
         try {
             await navigator.clipboard.writeText(couponCode);
             alert(`Đã copy mã: ${couponCode}\nHệ thống đang tiến hành xóa mã này trên đám mây...`);
         } catch (err) {
-            alert('Trình duyệt chặn tự động copy, hãy tự bôi đen copy mã này.');
+            alert('Trình duyệt chặn quyền truy cập clipboard, vui lòng bôi đen để sao chép tay.');
         }
 
         couponData.splice(globalIndex, 1);
         await syncDataToGitHub();
     }
 
-    // Hàm đẩy dữ liệu đè lên GitHub đám mây
+    // Đóng gói mảng JSON thành file nhị phân Excel đẩy ngược lên API GitHub
     async function syncDataToGitHub() {
-        const token = getCleanToken();
         const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/COUPONGVGS.xlsx`;
 
         try {
             const getRes = await fetch(url, {
-                headers: { 'Authorization': `token ${token}` }
+                headers: { 'Authorization': `token ${GITHUB_TOKEN.trim()}` },
+                cache: 'no-store'
             });
-            if (!getRes.ok) throw new Error('Không lấy được cấu trúc file đám mây để cập nhật.');
+            if (!getRes.ok) throw new Error('Không truy xuất được mã SHA file cũ.');
             const fileData = await getRes.json();
             const currentSha = fileData.sha;
 
@@ -289,36 +275,36 @@
             const putRes = await fetch(url, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `token ${GITHUB_TOKEN.trim()}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    message: "Hệ thống cập nhật danh sách Coupon trực tuyến",
+                    message: "Hệ thống tự động cập nhật lại file excel sau khi rút mã",
                     content: base64Content,
                     sha: currentSha
                 })
             });
 
             if (putRes.ok) {
-                alert("✓ ĐỒNG BỘ THÀNH CÔNG! Dữ liệu đã cập nhật lên đám mây.");
+                alert("✓ ĐỒNG BỘ THÀNH CÔNG! Cơ sở dữ liệu đám mây đã được cập nhật.");
                 fetchDataFromGitHub();
                 document.getElementById('searchKey').value = '';
                 document.getElementById('couponResultBox').innerHTML = '';
             } else {
                 const errDetail = await putRes.json();
-                alert("Đồng bộ thất bại! Lỗi từ máy chủ: " + errDetail.message);
+                alert("Đồng bộ thất bại! Mã lỗi máy chủ công bố: " + errDetail.message);
             }
         } catch (error) {
             console.error(error);
-            alert("Lỗi hệ thống: Đồng bộ thất bại! Hãy kiểm tra lại mã Token của bạn.");
+            alert("Lỗi đồng bộ: Không thể lưu file đè lên đám mây. Kiểm tra lại quyền hạn Token.");
         }
     }
 
-    // Hàm Admin nạp file excel mới từ máy tính
+    // Phân hệ nạp dữ liệu từ máy tính của quản trị viên
     async function uploadNewExcel() {
         const fileInput = document.getElementById('excelFileInput');
         if (!fileInput.files || fileInput.files.length === 0) {
-            alert('Vui lòng chọn file Excel (.xlsx) trước!');
+            alert('Vui lòng chọn file Excel dạng đuôi mở rộng .xlsx trước!');
             return;
         }
 
@@ -334,17 +320,17 @@
                 
                 couponData = XLSX.utils.sheet_to_json(worksheet);
 
-                alert(`Đọc file thành công (${couponData.length} dòng). Đang đẩy lên đám mây...`);
+                alert(`Đọc file Excel thành công (${couponData.length} dòng). Đang tiến hành đồng bộ dữ liệu...`);
                 await syncDataToGitHub();
             } catch (err) {
-                alert("Lỗi đọc dữ liệu file Excel. Hãy chắc chắn file đúng định dạng.");
+                alert("Cấu trúc file Excel bị lỗi, không thể chuyển đổi sang chuỗi dữ liệu đám mây.");
             }
         };
 
         reader.readAsArrayBuffer(file);
     }
 
-    // Hàm ẩn/hiện bảng điều khiển Admin
+    // Xác thực mở bảng điều khiển quản lý của Admin
     function toggleAdminPanel() {
         const password = prompt("Nhập mật khẩu quyền Quản trị viên:");
         if (password === ADMIN_PASSWORD) {
@@ -353,7 +339,7 @@
                 panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
             }
         } else {
-            alert("Sai mật khẩu truy cập!");
+            alert("Mật khẩu nhập chưa đúng!");
         }
     }
 </script>
